@@ -1,0 +1,239 @@
+<title>오늘 뭐부터</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap">
+<style>
+/* 레이아웃: 위에 입력(목록), 아래에 결과(오늘 할 3개 + 나중에). 한 열, 폰에서도 그대로 */
+:root {
+  --bg: #f5f6f4;
+  --surface: #ffffff;
+  --fg: #1c2321;
+  --muted: #5f6b67;
+  --line: #dde2df;
+  --accent: #1f6f5c;
+  --accent-fg: #ffffff;
+  --accent-soft: #e2f0eb;
+  --warn: #b4531c;
+  --font: "Noto Sans KR", system-ui, -apple-system, "Malgun Gothic", sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #121715; --surface: #1b2220; --fg: #e8eeeb; --muted: #9aa6a1;
+    --line: #2f3a36; --accent: #5fc0a5; --accent-fg: #0d1512; --accent-soft: #1d3029; --warn: #e49560;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #121715; --surface: #1b2220; --fg: #e8eeeb; --muted: #9aa6a1;
+  --line: #2f3a36; --accent: #5fc0a5; --accent-fg: #0d1512; --accent-soft: #1d3029; --warn: #e49560;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--fg); font-family: var(--font); font-size: 15px; line-height: 1.55;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 28px 56px;
+}
+main { max-width: 720px; margin: 0 auto; display: flex; flex-direction: column; gap: 28px; }
+h1 { font-size: 26px; margin: 0; letter-spacing: -0.02em; text-wrap: balance; }
+h2 { font-size: 15px; margin: 0 0 10px; color: var(--muted); font-weight: 700; letter-spacing: 0.04em; }
+.sub { color: var(--muted); margin: 6px 0 0; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; }
+.task { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 12px 0; border-top: 1px solid var(--line); }
+.task:first-of-type { border-top: 0; padding-top: 0; }
+.task .wide { grid-column: 1 / -1; }
+label { display: flex; flex-direction: column; gap: 3px; font-size: 12px; color: var(--muted); min-width: 0; }
+input, select {
+  font: inherit; color: var(--fg); background: var(--bg); border: 1px solid var(--line);
+  border-radius: 6px; padding: 8px 10px; min-width: 0; width: 100%;
+}
+input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.row-end { display: flex; justify-content: flex-end; }
+button { font: inherit; cursor: pointer; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--fg); padding: 8px 14px; }
+button.link { border: 0; background: none; color: var(--muted); padding: 2px 4px; font-size: 13px; text-decoration: underline; }
+button.primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); font-weight: 700; padding: 12px 20px; font-size: 16px; }
+.toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; margin-top: 14px; }
+.toolbar label { width: 150px; }
+.spacer { flex: 1; }
+.hint { font-size: 12px; color: var(--muted); margin: 10px 0 0; }
+.pick { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; padding: 14px 0; border-top: 1px solid var(--line); }
+.pick:first-of-type { border-top: 0; padding-top: 0; }
+.rank { font-size: 28px; font-weight: 700; color: var(--accent); line-height: 1.1; grid-row: span 3; min-width: 1ch; }
+.pick h3 { margin: 0; font-size: 18px; }
+.meta { color: var(--muted); font-size: 13px; }
+.why { margin: 0; }
+.first { margin: 0; background: var(--accent-soft); border-radius: 6px; padding: 6px 10px; font-size: 14px; }
+.tag { display: inline-block; font-size: 12px; font-weight: 500; padding: 1px 8px; border-radius: 99px; background: var(--accent-soft); color: var(--accent); margin-left: 6px; vertical-align: 2px; }
+.tag.warn { color: var(--warn); }
+.later li { padding: 4px 0; }
+.later { margin: 0; padding-left: 18px; color: var(--muted); }
+.empty { color: var(--muted); margin: 0; }
+@media (max-width: 480px) { .task { grid-template-columns: 1fr; } .toolbar label { width: 100%; } .toolbar .primary { width: 100%; } }
+@media (prefers-reduced-motion: no-preference) { .pick { animation: in .25s ease-out; } @keyframes in { from { opacity: .3; transform: translateY(4px); } } }
+</style>
+
+<main>
+  <header>
+    <h1>오늘 뭐부터</h1>
+    <p class="sub">해야 할 일을 적으면, 오늘 할 3개를 순서와 이유까지 정해 줍니다.</p>
+  </header>
+
+  <section aria-labelledby="h-list">
+    <h2 id="h-list">해야 할 일</h2>
+    <div class="panel">
+      <div id="tasks"></div>
+      <div class="toolbar">
+        <button type="button" id="add">+ 일 추가</button>
+        <span class="spacer"></span>
+        <button type="button" class="link" id="reset">예시로 되돌리기</button>
+      </div>
+      <p class="hint">처음 들어 있는 항목은 예시입니다. 내 일로 고쳐 쓰세요. 마감일과 시간은 몰라도 비워 두면 됩니다. 입력한 내용은 이 브라우저에 저장됩니다.</p>
+    </div>
+  </section>
+
+  <section aria-labelledby="h-go">
+    <h2 id="h-go">오늘 쓸 수 있는 시간</h2>
+    <div class="panel">
+      <div class="toolbar" style="margin-top:0">
+        <label for="today">오늘 날짜<input id="today" type="date"></label>
+        <label for="budget">쓸 수 있는 시간
+          <select id="budget"><option value="60">1시간</option><option value="120">2시간</option><option value="180" selected>3시간</option></select>
+        </label>
+        <span class="spacer"></span>
+        <button type="button" class="primary" id="go">오늘 할 일 정하기</button>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="h-out" aria-live="polite">
+    <h2 id="h-out">오늘 할 일</h2>
+    <div class="panel" id="out"><p class="empty">위에서 "오늘 할 일 정하기"를 누르세요.</p></div>
+  </section>
+</main>
+
+<script>
+(function () {
+  var KEY = "today-first-v1";
+  var EXAMPLE = [
+    { name: "AI 중급 과제", due: "2026-11-29", min: 60, imp: "high", first: "요구사항을 읽고 해야 할 부분을 3조각으로 나누기" },
+    { name: "한국사능력검정시험 공부", due: "2027-02-06", min: 60, imp: "mid", first: "다음 단원을 펴고 25분 타이머 맞추기" },
+    { name: "영어 공부 (기초 읽기·쓰기)", due: "", min: 60, imp: "low", first: "" },
+    { name: "취직 준비 계획 세우기", due: "", min: 30, imp: "mid", first: "공무원 시험 일정부터 확인하기" },
+    { name: "자기관리 (기상·수면, 식습관)", due: "", min: 5, imp: "mid", first: "내일 일어날 시간을 정하고 알람 맞추기" }
+  ];
+  var tasks;
+  try { tasks = JSON.parse(localStorage.getItem(KEY)); } catch (e) {}
+  if (!Array.isArray(tasks) || !tasks.length) tasks = JSON.parse(JSON.stringify(EXAMPLE));
+
+  function save() { try { localStorage.setItem(KEY, JSON.stringify(tasks)); } catch (e) {} }
+  function el(tag, cls, text) { var n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; }
+  function iso(d) { var m = d.getMonth() + 1, day = d.getDate(); return d.getFullYear() + "-" + (m < 10 ? "0" : "") + m + "-" + (day < 10 ? "0" : "") + day; }
+
+  var todayEl = document.getElementById("today");
+  todayEl.value = iso(new Date());
+
+  function field(labelText, input, wide, id) {
+    var l = el("label", wide ? "wide" : "", labelText);
+    input.id = id; l.htmlFor = id; l.appendChild(input); return l;
+  }
+  function render() {
+    var box = document.getElementById("tasks");
+    box.textContent = "";
+    tasks.forEach(function (t, i) {
+      var row = el("div", "task");
+      var name = el("input"); name.type = "text"; name.value = t.name; name.placeholder = "예: 영어 레포트";
+      name.oninput = function () { t.name = name.value; save(); };
+      var due = el("input"); due.type = "date"; due.value = t.due || "";
+      due.oninput = function () { t.due = due.value; save(); };
+      var min = el("input"); min.type = "number"; min.min = "0"; min.step = "5"; min.value = t.min || ""; min.placeholder = "분";
+      min.oninput = function () { t.min = parseInt(min.value, 10) || 0; save(); };
+      var imp = el("select");
+      [["high", "높음"], ["mid", "보통"], ["low", "낮음"]].forEach(function (o) {
+        var op = el("option", "", o[1]); op.value = o[0]; if (t.imp === o[0]) op.selected = true; imp.appendChild(op);
+      });
+      imp.onchange = function () { t.imp = imp.value; save(); };
+      var first = el("input"); first.type = "text"; first.value = t.first || ""; first.placeholder = "비워 두면 25분 타이머로 시작하기";
+      first.oninput = function () { t.first = first.value; save(); };
+      row.appendChild(field("할 일", name, true, "n" + i));
+      row.appendChild(field("마감일 (모르면 비움)", due, false, "d" + i));
+      row.appendChild(field("걸리는 시간(분)", min, false, "m" + i));
+      row.appendChild(field("중요도", imp, false, "p" + i));
+      row.appendChild(field("첫 행동 (선택)", first, false, "f" + i));
+      var end = el("div", "row-end wide");
+      var del = el("button", "link", "삭제"); del.type = "button";
+      del.onclick = function () { tasks.splice(i, 1); save(); render(); };
+      end.appendChild(del); row.appendChild(end);
+      box.appendChild(row);
+    });
+  }
+
+  function daysUntil(due, todayStr) {
+    if (!due) return null;
+    var a = new Date(todayStr + "T00:00:00"), b = new Date(due + "T00:00:00");
+    return Math.round((b - a) / 86400000);
+  }
+  function score(t, days) {
+    var s = 5;
+    if (days !== null) {
+      if (days < 0) s = 130; else if (days <= 2) s = 110; else if (days <= 5) s = 90;
+      else if (days <= 10) s = 60; else if (days <= 30) s = 35; else if (days <= 90) s = 20; else s = 10;
+    }
+    s += t.imp === "high" ? 30 : t.imp === "mid" ? 15 : 0;
+    if (t.min > 0 && t.min <= 10) s += 25;
+    return s;
+  }
+  function why(t, days) {
+    var p = [];
+    if (days !== null) {
+      if (days < 0) p.push("마감이 " + (-days) + "일 지났어요");
+      else if (days === 0) p.push("오늘이 마감이에요");
+      else p.push("마감까지 " + days + "일" + (days <= 5 ? ", 가장 가까워요" : ""));
+    } else p.push("마감일이 없어 급하지 않아요");
+    if (t.imp === "high") p.push("중요도가 높아요");
+    if (t.min > 0 && t.min <= 10) p.push(t.min + "분이면 끝나서 부담이 작아요");
+    return p.join(". ") + ".";
+  }
+  function dday(days) { return days === null ? "" : days < 0 ? "D+" + (-days) : days === 0 ? "D-day" : "D-" + days; }
+
+  function go() {
+    var out = document.getElementById("out"); out.textContent = "";
+    var budget = parseInt(document.getElementById("budget").value, 10);
+    var list = tasks.filter(function (t) { return t.name && t.name.trim(); }).map(function (t) {
+      var d = daysUntil(t.due, todayEl.value);
+      return { t: t, days: d, score: score(t, d) };
+    }).sort(function (a, b) { return b.score - a.score; });
+    if (!list.length) { out.appendChild(el("p", "empty", "할 일을 하나 이상 적어 주세요.")); return; }
+    var top = list.slice(0, 3), rest = list.slice(3), used = 0;
+    top.forEach(function (x, i) {
+      var m = x.t.min || 0; used += m;
+      var over = i > 0 && used > budget;
+      var card = el("div", "pick");
+      card.appendChild(el("div", "rank", String(i + 1)));
+      var h = el("h3", "", x.t.name);
+      if (x.days !== null) h.appendChild(el("span", "tag" + (x.days <= 5 ? " warn" : ""), dday(x.days)));
+      if (over) h.appendChild(el("span", "tag", "시간 남으면"));
+      card.appendChild(h);
+      card.appendChild(el("p", "why", why(x.t, x.days)));
+      card.appendChild(el("p", "first", "첫 행동: " + (x.t.first && x.t.first.trim() ? x.t.first : "타이머 25분 맞추고 시작하기") + (m ? " (약 " + m + "분)" : "")));
+      out.appendChild(card);
+    });
+    var sum = el("p", "meta", "위 3개는 합쳐서 약 " + used + "분이에요. 오늘 쓸 수 있는 시간은 " + (budget / 60) + "시간이라, " +
+      (used <= budget ? "모두 할 수 있어요." : "앞에서부터 하다가 시간이 끝나면 멈추세요."));
+    sum.style.marginTop = "6px"; out.appendChild(sum);
+    if (rest.length) {
+      var hh = el("h2", "", "나중에"); hh.style.marginTop = "18px"; out.appendChild(hh);
+      var ul = el("ul", "later");
+      rest.forEach(function (x) { ul.appendChild(el("li", "", x.t.name + (x.days !== null ? " (" + dday(x.days) + ")" : ""))); });
+      out.appendChild(ul);
+    }
+  }
+
+  document.getElementById("add").onclick = function () {
+    tasks.push({ name: "", due: "", min: 30, imp: "mid", first: "" }); save(); render();
+    var last = document.getElementById("n" + (tasks.length - 1)); if (last) last.focus();
+  };
+  document.getElementById("reset").onclick = function () { tasks = JSON.parse(JSON.stringify(EXAMPLE)); save(); render(); };
+  document.getElementById("go").onclick = go;
+  render();
+})();
+</script>
